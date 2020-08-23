@@ -97,6 +97,7 @@
         "onLanguage:sql",
         "onLanguage:stata",
         "onLanguage:stylus",
+        "onLanguage:svg",
         "onLanguage:swift",
         "onLanguage:tcl",
         "onLanguage:terraform",
