@@ -17,30 +17,34 @@ This extension can be configured in User Settings or Workspace settings.
 
 #### Highlight Plain Text
 `"better-comments.highlightPlainText": false`
+
 This setting will control whether comments in a plain text file are styled using the annotation tags.
 When true, the tags will be detected if they're the first character on a line.
 Only applies when `better-comments.singleLineComments` is set to `true`.
 
 #### Single Line Comments
 `"better-comments.singleLineComments": true`
+
 Whether the single line comment highlighter should be active
 When false, single line comments will be presented without decoration.
 
 #### Multiline Comments
 `"better-comments.multilineComments": true`
+
 This setting will control whether multiline comments are styled using the annotation tags.
 When false, multiline comments will be presented without decoration.
 
 #### Use JSDoc Style
 `"better-comments.useJSDocStyle": ["apex","javascript","javascriptreact","typescript","typescriptreact"]`
+
 This setting will control whether multiline comments are styled respecting the [JSDoc](link-jsdoc) sintax.
-Only applies when `better-comments.multilineComments` is set to `true`.
-Is active by default on `apex`, `javascript`, `javascriptreact`, `typescript` and `typescriptreact` lenguages.
-But other languages can be added or removed to modify this behavior, see [support](supported-languages).
+
+> Only applies when `better-comments.multilineComments` is set to `true`.
+
+Is active by default on `apex`, `javascript`, `javascriptreact`, `typescript` and `typescriptreact` lenguages. But other languages can be added or removed to modify this behavior, see [support](supported-languages).
 
 `better-comments.tags`
-The tags are the characters or sequences used to mark a comment for decoration.
-Each tag can contain:
+The tags are the characters or sequences used to mark a comment for decoration. Each tag can contain:
 ```jsonc
 {
   // ! Required
@@ -57,6 +61,7 @@ Each tag can contain:
 The object also can include all the decoration valid options as `color`, `backgroundColor`, `border`, etc.
 See [here](link-decoration-type) and [here](link-decoration-type1) for all the valid options.
 > If a custom option as `bold` and a the original option `fontWeight` the original will have priority.
+
 The default 5 can be modified, and more can be added.
 
 ```json
@@ -89,10 +94,14 @@ The default 5 can be modified, and more can be added.
 See language identifiers [here](link-vscode).
 
 The support of [JSDoc](link-jsdoc) syntax is teorical, based on the syntax of the comments of each language.
-`**Default**` languages use JSDoc as the recommeded syntax (e.g. javascript)
-`_Supported_` languages doesn't have JSDoc, but they have a similar syntax standard (e.g. [Javadoc](link-javadoc) for java).
-`~Compatible~` languages are compatible, but they have a different recommended syntax (e.g. [SassDoc](link-sassdoc) for sass/scss).
-`Compatible` languages are teorical compatible based on their comment syntax.
+
+'**Default**' languages use JSDoc as the recommeded syntax (e.g. javascript)
+
+'_Supported_' languages doesn't have JSDoc, but they have a similar syntax standard (e.g. [Javadoc](link-javadoc) for java).
+
+'~Compatible~' languages are compatible, but they have a different recommended syntax (e.g. [SassDoc](link-sassdoc) for sass/scss).
+
+'Compatible' languages are teorical compatible based on their comment syntax.
 
 |Lenguage|Language identifier|Inline comment|Block comment|JSDoc Support|Notes|
 |--------|:-----------------:|:------------:|:-----------:|:-----------:|----:|
@@ -118,7 +127,7 @@ The support of [JSDoc](link-jsdoc) syntax is teorical, based on the syntax of th
 |Objective-C++     |`objective-cpp`|`//`|`/*` `*/`|Compatible|
 |Object Pascal     |`objectpascal` |`//`|`/*` `*/`|Compatible|
 |Pascal            |`pascal`       |`//`|`/*` `*/`|Compatible|
-|PHP               |`php`          |`//`|`/*` `*/`|_supported_|see [PHPDoc](link-phpdoc)
+|PHP               |`php`          |`//`|`/*` `*/`|_Supported_|see [PHPDoc](link-phpdoc)
 |Rust              |`rust`         |`//`|`/*` `*/`|~Compatible~|use [RustDoc](link-rustdoc) syntax instead <!--///-->
 |Sass              |`scala`        |`//`|`/*` `*/`|~Compatible~|use [SassDoc](link-sassdoc) syntax instead <!--///-->
 |Scala             |`sass`         |`//`|`/*` `*/`|Compatible|
@@ -130,7 +139,7 @@ The support of [JSDoc](link-jsdoc) syntax is teorical, based on the syntax of th
 |TypeScript React|`typescriptreact`|`//`|`/*` `*/`|**Default**|see [JSDoc](link-jsdoc)
 |Verilog           |`verilog`      |`//`|`/*` `*/`|Compatible|
 |Vue.js            |`vue`          |`//`|`/*` `*/`|_Supported_|see [JSDoc](link-jsdoc)
-|STATA             |`stata`    |`//`,`*`|`/*` `*/`|~Compatible~|use their [recommended](link-statadoc) syntax instead
+|STATA             |`stata`    |`//` `*`|`/*` `*/`|~Compatible~|use their [recommended](link-statadoc) syntax instead
 |SAS               |`SAS`           |`*`|`/*` `*/`|~Compatible~|use their [recommended](link-sasdoc) syntax instead
 |CSS               |`css`              ||`/*` `*/`|Compatible|
 |Terraform         |`terraform`     |`#`|`/*` `*/`|~Compatible~|use their [recommended](link-terraformdoc) syntax instead
