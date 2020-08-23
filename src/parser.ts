@@ -1,41 +1,48 @@
 import * as vscode from 'vscode';
 
 interface CommentTag {
-	tag: string;
-	escapedTag: string;
+	tag: string[] | string;
+	escapedTag: string[] | string;
 	decoration: vscode.TextEditorDecorationType;
 	ranges: Array<vscode.DecorationOptions>;
 }
 
+//* 'color' and 'backgroundColor' are part of the 'DecorationRenderOptions'
+//* 'DecorationRenderOptions' included to make styles more customizable (border, opacity, etc)
+//* tags: string[] included to allow multiple tag with the same style
+//* 'bold', 'italic', 'strikethrough', 'underline' manteined to be more comprenhensible
+//* but make it optional values to make shorter style definitions
+type DecorationTag = vscode.DecorationRenderOptions & {
+	tag: string[] | string;
+	bold?: boolean;
+	italic?: boolean;
+	strikethrough?: boolean;
+	underline?: boolean;
+}
+
 interface Contributions {
-	multilineComments: boolean;
-	useJSDocStyle: boolean;
 	highlightPlainText: boolean;
-	tags: [{
-		tag: string;
-		color: string;
-		strikethrough: boolean;
-		underline: boolean;
-		bold: boolean;
-		italic: boolean;
-		backgroundColor: string;
-	}];
+	singleLineComments: boolean;
+	multilineComments: boolean;
+	useJSDocStyle: string[];
+	tags: DecorationTag[];
 }
 
 export class Parser {
 	private tags: CommentTag[] = [];
-	private expression: string = "";
 
-	private delimiter: string = "";
+	private delimiter: string[] | string = "";
 	private blockCommentStart: string = "";
 	private blockCommentEnd: string = "";
 
-	private highlightSingleLineComments = true;
-	private highlightMultilineComments = false;
-	private highlightJSDoc = false;
+	private singlelineCommentRegex?: RegExp;
+	private blockCommentRegex?: RegExp;
+	private tagsRegex?: RegExp;
 
-	// * this will allow plaintext files to show comment highlighting if switched on
-	private isPlainText = false;
+	private highlightPlainText = false;
+	private highlightSingleLineComments = true;
+	private highlightMultilineComments = true;
+	private highlightJSDoc = false;
 
 	// * this is used to prevent the first line of the file (specifically python) from coloring like other comments
 	private ignoreFirstLine = false;
@@ -59,27 +66,58 @@ export class Parser {
 		this.setDelimiter(languageCode);
 
 		// if the language isn't supported, we don't need to go any further
-		if (!this.supportedLanguage) {
-			return;
+		if (!this.supportedLanguage) return;
+
+		let characters: string[] = [];
+		for (const commentTag of this.tags) {
+			if (Array.isArray(commentTag.escapedTag)) {
+				for (const tag of commentTag.escapedTag) {
+					characters.push(tag);
+				}
+			} else {
+				characters.push(commentTag.escapedTag);
+			}
 		}
 
-		let characters: Array<string> = [];
-		for (let commentTag of this.tags) {
-			characters.push(commentTag.escapedTag);
+		if (this.highlightSingleLineComments) {
+			let delimiters: string[] = [];
+			if (Array.isArray(this.delimiter)) {
+				for (const delimiter of this.delimiter) {
+					delimiters.push(delimiter);
+				}
+			} else delimiters.push(this.delimiter);
+
+			let expression = this.highlightPlainText
+				? "(^)+([ \\t]*[ \\t]*)("
+				: "(" + delimiters.join("|") + ")+( |\\t)*(";
+			expression += characters.join("|");
+			expression += ")+(.*)";
+
+			// if it's plain text, we have to do mutliline regex to catch the start of the line with ^
+			const regexFlags = this.highlightPlainText ? "igm" : "ig";
+			this.singlelineCommentRegex = new RegExp(expression, regexFlags);
 		}
 
-		if (this.isPlainText && this.contributions.highlightPlainText) {
-			// start by tying the regex to the first character in a line
-			this.expression = "(^)+([ \\t]*[ \\t]*)";
-		} else {
-			// start by finding the delimiter (//, --, #, ') with optional spaces or tabs
-			this.expression = "(" + this.delimiter.replace(/\//ig, "\\/") + ")+( |\t)*";
-		}
+		// If highlight multiline is off in package.json or doesn't apply to his language, return
+		if (!this.highlightMultilineComments) return;
 
-		// Apply all configurable comment start tags
-		this.expression += "(";
-		this.expression += characters.join("|");
-		this.expression += ")+(.*)";
+		// Combine custom delimiters and the rest of the comment block matcher
+		let tagMatchString = this.highlightJSDoc
+			? "(^)+([ \\t]*\\*[ \\t]*)(" // Highlight after leading *
+			: "(^)+([ \\t]*[ \\t]*)(";
+		tagMatchString += characters.join("|");
+		tagMatchString += ")([ ]*|[:])+([^*/][^\\r\\n]*)";
+
+		// Find rows of comments matching pattern /** */ (JSDoc)
+		// or use start and end delimiters to find block comments
+		let blockMatchString = "(^|[ \\t])(";
+		blockMatchString += this.highlightJSDoc ? "\\/\\*\\*" : this.blockCommentStart;
+		blockMatchString += "[\\s])+([\\s\\S]*?)(";
+		blockMatchString += this.highlightJSDoc ? "\\*\\/" : this.blockCommentEnd;
+		blockMatchString += ")";
+
+		this.tagsRegex = new RegExp(tagMatchString, "igm");
+		this.blockCommentRegex = new RegExp(blockMatchString, "gm");
 	}
 
 	/**
@@ -89,19 +127,14 @@ export class Parser {
 	public FindSingleLineComments(activeEditor: vscode.TextEditor): void {
 
 		// If highlight single line comments is off, single line comments are not supported for this language
-		if (!this.highlightSingleLineComments) return;
-
+		if (!this.highlightSingleLineComments || !this.singlelineCommentRegex) return;
 		let text = activeEditor.document.getText();
 
-		// if it's plain text, we have to do mutliline regex to catch the start of the line with ^
-		let regexFlags = (this.isPlainText) ? "igm" : "ig";
-		let regEx = new RegExp(this.expression, regexFlags);
-
 		let match: any;
-		while (match = regEx.exec(text)) {
+		while (match = this.singlelineCommentRegex.exec(text)) {
 			let startPos = activeEditor.document.positionAt(match.index);
 			let endPos = activeEditor.document.positionAt(match.index + match[0].length);
-			let range = { range: new vscode.Range(startPos, endPos) };
+			let range: vscode.DecorationOptions = { range: new vscode.Range(startPos, endPos) };
 
 			// Required to ignore the first line of .py files (#61)
 			if (this.ignoreFirstLine && startPos.line === 0 && startPos.character === 0) {
@@ -109,7 +142,16 @@ export class Parser {
 			}
 
 			// Find which custom delimiter was used in order to add it to the collection
-			let matchTag = this.tags.find(item => item.tag.toLowerCase() === match[3].toLowerCase());
+			let matchTag = this.tags.find(item => {
+				if (Array.isArray(item.tag)) {
+					for (const tag of item.tag) {
+						if (tag.toLowerCase() === match[3].toLowerCase()) return true;
+					}
+					return false;
+				} else {
+					return item.tag.toLowerCase() === match[3].toLowerCase();
+				}
+			});
 
 			if (matchTag) {
 				matchTag.ranges.push(range);
@@ -124,95 +166,33 @@ export class Parser {
 	public FindBlockComments(activeEditor: vscode.TextEditor): void {
 
 		// If highlight multiline is off in package.json or doesn't apply to his language, return
-		if (!this.highlightMultilineComments) return;
-		
+		if (!this.highlightMultilineComments || !this.blockCommentRegex || !this.tagsRegex) return;
 		let text = activeEditor.document.getText();
-
-		// Build up regex matcher for custom delimiter tags
-		let characters: Array<string> = [];
-		for (let commentTag of this.tags) {
-			characters.push(commentTag.escapedTag);
-		}
-
-		// Combine custom delimiters and the rest of the comment block matcher
-		let commentMatchString = "(^)+([ \\t]*[ \\t]*)(";
-		commentMatchString += characters.join("|");
-		commentMatchString += ")([ ]*|[:])+([^*/][^\\r\\n]*)";
-
-		// Use start and end delimiters to find block comments
-		let regexString = "(^|[ \\t])(";
-		regexString += this.blockCommentStart;
-		regexString += "[\\s])+([\\s\\S]*?)(";
-		regexString += this.blockCommentEnd;
-		regexString += ")";
-
-		let regEx = new RegExp(regexString, "gm");
-		let commentRegEx = new RegExp(commentMatchString, "igm");
 
 		// Find the multiline comment block
 		let match: any;
-		while (match = regEx.exec(text)) {
+		while (match = this.blockCommentRegex.exec(text)) {
 			let commentBlock = match[0];
 
 			// Find the line
 			let line;
-			while (line = commentRegEx.exec(commentBlock)) {
+			while (line = this.tagsRegex.exec(commentBlock)) {
 				let startPos = activeEditor.document.positionAt(match.index + line.index + line[2].length);
 				let endPos = activeEditor.document.positionAt(match.index + line.index + line[0].length);
 				let range: vscode.DecorationOptions = { range: new vscode.Range(startPos, endPos) };
 
 				// Find which custom delimiter was used in order to add it to the collection
 				let matchString = line[3] as string;
-				let matchTag = this.tags.find(item => item.tag.toLowerCase() === matchString.toLowerCase());
-
-				if (matchTag) {
-					matchTag.ranges.push(range);
-				}
-			}
-		}
-	}
-
-	/**
-	 * Finds all multiline comments starting with "*"
-	 * @param activeEditor The active text editor containing the code document
-	 */
-	public FindJSDocComments(activeEditor: vscode.TextEditor): void {
-
-		// If highlight multiline is off in package.json or doesn't apply to his language, return
-		if (!this.highlightMultilineComments && !this.highlightJSDoc) return;
-
-		let text = activeEditor.document.getText();
-
-		// Build up regex matcher for custom delimiter tags
-		let characters: Array<string> = [];
-		for (let commentTag of this.tags) {
-			characters.push(commentTag.escapedTag);
-		}
-
-		// Combine custom delimiters and the rest of the comment block matcher
-		let commentMatchString = "(^)+([ \\t]*\\*[ \\t]*)("; // Highlight after leading *
-		let regEx = /(^|[ \t])(\/\*\*)+([\s\S]*?)(\*\/)/gm; // Find rows of comments matching pattern /** */
-
-		commentMatchString += characters.join("|");
-		commentMatchString += ")([ ]*|[:])+([^*/][^\\r\\n]*)";
-
-		let commentRegEx = new RegExp(commentMatchString, "igm");
-
-		// Find the multiline comment block
-		let match: any;
-		while (match = regEx.exec(text)) {
-			let commentBlock = match[0];
-
-			// Find the line
-			let line;
-			while (line = commentRegEx.exec(commentBlock)) {
-				let startPos = activeEditor.document.positionAt(match.index + line.index + line[2].length);
-				let endPos = activeEditor.document.positionAt(match.index + line.index + line[0].length);
-				let range: vscode.DecorationOptions = { range: new vscode.Range(startPos, endPos) };
-
-				// Find which custom delimiter was used in order to add it to the collection
-				let matchString = line[3] as string;
-				let matchTag = this.tags.find(item => item.tag.toLowerCase() === matchString.toLowerCase());
+				let matchTag = this.tags.find(item => {
+					if (Array.isArray(item.tag)) {
+						for (const tag of item.tag) {
+							if (tag.toLowerCase() === matchString.toLowerCase()) return true;
+						}
+						return false;
+					} else {
+						return item.tag.toLowerCase() === matchString.toLowerCase();
+					}
+				});
 
 				if (matchTag) {
 					matchTag.ranges.push(range);
@@ -235,31 +215,66 @@ export class Parser {
 	}
 
 	/**
+	 * Sets the highlighting tags up for use by the parser
+	 */
+	private setTags(): void {
+		let items = this.contributions.tags;
+		for (let item of items) {
+			// * `DecorationRenderOptions` has priority over custom properties
+
+			// * if `fontWeight` is not defined, look for `bold`
+			if (!item.fontWeight && item.bold) item.fontWeight = "bold";
+
+			// * if `fontStyle` is not defined, look for `italic`
+			if (!item.fontStyle && item.italic) item.fontStyle = "italic";
+
+			// * if `textDecoration` is not defined, look for `strikethrough` and `underline`
+			if (!item.textDecoration) {
+				let textDecoration: string[] = [];
+
+				if (item.underline) textDecoration.push("underline");
+				if (item.strikethrough) textDecoration.push("line-through");
+				item.textDecoration = textDecoration.join(" ");
+			}
+			// item.tags
+			const sequenceMatchRegExp = /([()[{*+.$^\\|?])/g;
+			let escapedSequence: string[] | string;
+
+			if (Array.isArray(item.tag)) {
+				escapedSequence = [];
+
+				for (const tag of item.tag) {
+					// ! hardcoded to escape slashes
+					escapedSequence.push(tag.replace(sequenceMatchRegExp, '\\$1').replace(/\//gi, "\\/"));
+				}
+			} else {
+				// ! hardcoded to escape slashes
+				escapedSequence = item.tag.replace(sequenceMatchRegExp, '\\$1').replace(/\//gi, "\\/");
+			}
+
+			this.tags.push({
+				tag: item.tag,
+				escapedTag: escapedSequence,
+				ranges: [],
+				decoration: vscode.window.createTextEditorDecorationType(item)
+			});
+		}
+	}
+
+	/**
 	 * Sets the comment delimiter [//, #, --, '] of a given language
 	 * @param languageCode The short code of the current language
 	 * https://code.visualstudio.com/docs/languages/identifiers
 	 */
 	private setDelimiter(languageCode: string): void {
-		this.supportedLanguage = true;
-		this.ignoreFirstLine = false;
-		this.isPlainText = false;
-
+		let useJSDocStyle = false;
 		switch (languageCode) {
-
 			case "asciidoc":
-				this.setCommentFormat("//", "////", "////");
-				break;
-
-			case "apex":
-			case "javascript":
-			case "javascriptreact":
-			case "typescript":
-			case "typescriptreact":
-				this.setCommentFormat("//", "/*", "*/");
-				this.highlightJSDoc = true;
+				this.setCommentFormat({ delimiter: "//", start: "////", end: "////" });
 				break;
 
 			case "al":
+			case "apex":
 			case "c":
 			case "cpp":
 			case "csharp":
@@ -270,11 +285,15 @@ export class Parser {
 			case "groovy":
 			case "haxe":
 			case "java":
+			case "javascript":
+			case "javascriptreact":
 			case "jsonc":
 			case "kotlin":
 			case "less":
-			case "pascal":
+			case "objective-c":
+			case "objective-cpp":
 			case "objectpascal":
+			case "pascal":
 			case "php":
 			case "rust":
 			case "scala":
@@ -283,13 +302,31 @@ export class Parser {
 			case "shaderlab":
 			case "stylus":
 			case "swift":
+			case "typescript":
+			case "typescriptreact":
 			case "verilog":
 			case "vue":
-				this.setCommentFormat("//", "/*", "*/");
+				useJSDocStyle = !!this.contributions.useJSDocStyle.find(lang => lang === languageCode);
+				this.setCommentFormat({ delimiter: "//", start: "/*", end: "*/", useJSDocStyle });
 				break;
-			
+
+			case "stata":
+				useJSDocStyle = !!this.contributions.useJSDocStyle.find(lang => lang === languageCode);
+				this.setCommentFormat({ delimiter: ["//","*"], start: "/*", end: "*/", useJSDocStyle });
+				break;
+
+			case "SAS":
+				useJSDocStyle = !!this.contributions.useJSDocStyle.find(lang => lang === languageCode);
+				this.setCommentFormat({ delimiter: "*", start: "/*", end: "*/", useJSDocStyle });
+
 			case "css":
-				this.setCommentFormat("/*", "/*", "*/");
+				useJSDocStyle = !!this.contributions.useJSDocStyle.find(lang => lang === languageCode);
+				this.setCommentFormat({ delimiter: "/*", start: "/*", end: "*/", useJSDocStyle });
+				break;
+
+			case "terraform":
+				useJSDocStyle = !!this.contributions.useJSDocStyle.find(lang => lang === languageCode);
+				this.setCommentFormat({ delimiter: "#", start: "/*", end: "*/", useJSDocStyle });
 				break;
 
 			case "coffeescript":
@@ -304,28 +341,40 @@ export class Parser {
 			case "r":
 			case "ruby":
 			case "shellscript":
-			case "tcl":
 			case "yaml":
-				this.delimiter = "#";
+				this.setCommentFormat({ delimiter: "#" });
 				break;
-			
+
 			case "tcl":
-				this.delimiter = "#";
-				this.ignoreFirstLine = true;
+				this.setCommentFormat({ delimiter: "#", ignoreFirstLine: true });
 				break;
 
 			case "elixir":
 			case "python":
-				this.setCommentFormat("#", '"""', '"""');
-				this.ignoreFirstLine = true;
-				break;
-			
-			case "nim":
-				this.setCommentFormat("#", "#[", "]#");
+				this.setCommentFormat({ delimiter: "#", start: '"""', end: '"""', ignoreFirstLine: true });
 				break;
 
 			case "powershell":
-				this.setCommentFormat("#", "<#", "#>");
+				this.setCommentFormat({ delimiter: "#", start: "<#", end: "#>" });
+				break;
+
+			case "nim":
+				this.setCommentFormat({ delimiter: "#", start: "#[", end: "]#" });
+				break;
+
+			case "twig":
+				this.setCommentFormat({ delimiter: "{#", start: "{#", end: "#}" });
+				break;
+
+			case "html":
+			case "markdown":
+			case "svg":
+			case "xml":
+				this.setCommentFormat({ delimiter: "<!--", start: "<!--", end: "-->" });
+				break;
+
+			case "cfml":
+				this.setCommentFormat({ delimiter: "<!---", start: "<!---", end: "--->" });
 				break;
 
 			case "ada":
@@ -333,129 +382,57 @@ export class Parser {
 			case "pig":
 			case "plsql":
 			case "sql":
-				this.delimiter = "--";
+				this.setCommentFormat({ delimiter: "--"});
 				break;
-			
+
 			case "lua":
-				this.setCommentFormat("--", "--[[", "]]");
+				this.setCommentFormat({ delimiter: "--", start: "--[[", end: "]]" });
 				break;
 
 			case "elm":
 			case "haskell":
-				this.setCommentFormat("--", "{-", "-}");
+				this.setCommentFormat({ delimiter: "--", start: "{-", end: "-}" });
 				break;
 
 			case "brightscript":
 			case "diagram": // ? PlantUML is recognized as Diagram (diagram)
 			case "vb":
-				this.delimiter = "'";
+				this.setCommentFormat({ delimiter: "'"});
+				break;
+
+			case "clojure":
+			case "lisp":
+			case "racket":
+				this.setCommentFormat({ delimiter: ";" });
 				break;
 
 			case "bibtex":
 			case "erlang":
 			case "latex":
 			case "matlab":
-				this.delimiter = "%";
-				break;
-
-			case "clojure":
-			case "racket":
-			case "lisp":
-				this.delimiter = ";";
-				break;
-
-			case "terraform":
-				this.setCommentFormat("#", "/*", "*/");
-				break;
-
-			case "COBOL":
-				this.delimiter = this.escapeRegExp("*>");
+				this.setCommentFormat({ delimiter: "%" });
 				break;
 
 			case "fortran-modern":
-				this.delimiter = "c";
+				this.setCommentFormat({ delimiter: "c" });
 				break;
-			
-			case "SAS":
-			case "stata":
-				this.setCommentFormat("*", "/*", "*/");
-				break;
-			
-			case "html":
-			case "markdown":
-			case "xml":
-				this.setCommentFormat("<!--", "<!--", "-->");
-				break;
-			
-			case "twig":
-				this.setCommentFormat("{#", "{#", "#}");
+
+			case "COBOL":
+				this.setCommentFormat({ delimiter: "*>" });
 				break;
 
 			case "genstat":
-				this.setCommentFormat("\\", '"', '"');
-				break;
-			
-			case "cfml":
-				this.setCommentFormat("<!---", "<!---", "--->");
+				this.setCommentFormat({ delimiter: "\\", start: '"', end: '"' });
 				break;
 
 			case "plaintext":
-				this.isPlainText = true;
-
-				// If highlight plaintext is enabeld, this is a supported language
-				this.supportedLanguage = this.contributions.highlightPlainText;
+				this.setCommentFormat({ plainText: true });
 				break;
 
 			default:
-				this.supportedLanguage = false;
+				this.setCommentFormat();
 				break;
 		}
-	}
-
-	/**
-	 * Sets the highlighting tags up for use by the parser
-	 */
-	private setTags(): void {
-		let items = this.contributions.tags;
-		for (let item of items) {
-			let options: vscode.DecorationRenderOptions = { color: item.color, backgroundColor: item.backgroundColor };
-
-			// ? the textDecoration is initialised to empty so we can concat a preceeding space on it
-			options.textDecoration = "";
-
-			if (item.strikethrough) {
-				options.textDecoration += "line-through";
-			}
-			
-			if (item.underline) {
-				options.textDecoration += " underline";
-			}
-			
-			if (item.bold) {
-				options.fontWeight = "bold";
-			}
-
-			if (item.italic) {
-				options.fontStyle = "italic";
-			}
-
-			let escapedSequence = item.tag.replace(/([()[{*+.$^\\|?])/g, '\\$1');
-			this.tags.push({
-				tag: item.tag,
-				escapedTag: escapedSequence.replace(/\//gi, "\\/"), // ! hardcoded to escape slashes
-				ranges: [],
-				decoration: vscode.window.createTextEditorDecorationType(options)
-			});
-		}
-	}
-
-	/**
-	 * Escapes a given string for use in a regular expression
-	 * @param input The input string to be escaped
-	 * @returns {string} The escaped string
-	 */
-	private escapeRegExp(input: string): string {
-		return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
 	}
 
 	/**
@@ -464,18 +441,50 @@ export class Parser {
 	 * @param start The start delimiter for block comments
 	 * @param end The end delimiter for block comments
 	 */
-	private setCommentFormat(singleLine: string | null, start: string, end: string): void {
-		
-		// If no single line comment delimiter is passed, single line comments are not supported
-		if (singleLine) {
-			this.delimiter = this.escapeRegExp(singleLine);
-		}
-		else {
-			this.highlightSingleLineComments = false;
+	private setCommentFormat(option?: {
+		delimiter?: string[] | string;
+		start?: string;
+		end?: string;
+		useJSDocStyle?: boolean;
+		ignoreFirstLine?: boolean;
+		plainText?: boolean;
+	}): void {
+		if (!option) {
+			this.supportedLanguage = false;
+			return;
 		}
 
-		this.blockCommentStart = this.escapeRegExp(start);
-		this.blockCommentEnd = this.escapeRegExp(end);
-		this.highlightMultilineComments = this.contributions.multilineComments;
+		if (option.plainText) {
+			// If highlight plaintext and highlight single line are enabeld, this is a supported language
+			this.supportedLanguage = this.highlightPlainText
+				= this.contributions.highlightPlainText && this.contributions.singleLineComments;
+			return;
+		}
+
+		// If no single line comment delimiter is passed, single line comments are not supported
+		this.highlightSingleLineComments = this.contributions.singleLineComments && !!option.delimiter;
+		if (Array.isArray(option.delimiter)) this.delimiter = option.delimiter.map(val => this.escapeRegExp(val));
+		else if (!!option.delimiter) this.delimiter = this.escapeRegExp(option.delimiter);
+		else this.delimiter = "";
+
+		// Multiline comments disable, if it was disabled on configuration or if the language doesn't have it
+		this.highlightMultilineComments = this.contributions.multilineComments && !!option.start;
+		this.blockCommentStart = option.start ? this.escapeRegExp(option.start) : "";
+		this.blockCommentEnd = option.end ? this.escapeRegExp(option.end) : "";
+
+		// Option settings
+		this.supportedLanguage = true;
+		this.highlightPlainText = false;
+		this.highlightJSDoc = !!option.useJSDocStyle;
+		this.ignoreFirstLine = !!option.ignoreFirstLine;
+	}
+
+	/**
+	 * Escapes a given string for use in a regular expression
+	 * @param input The input string to be escaped
+	 * @returns {string} The escaped string
+	 */
+	private escapeRegExp(input: string): string {
+		return input.replace(/[.*+?^${}()|[\]\\\/]/g, '\\$&'); // $& means the whole matched string
 	}
 }

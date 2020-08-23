@@ -127,8 +127,13 @@
             "properties": {
                 "better-comments.highlightPlainText": {
                     "type": "boolean",
-                    "description": "Whether the plaintext comment highlighter should be active",
+                    "description": "Whether the plaintext comment highlighter should be active. Only applies when `#better-comments.singleLineComments#` is set to `true`.",
                     "default": false
+                },
+                "better-comments.singleLineComments": {
+                    "type": "boolean",
+                    "description": "Whether the single line comment highlighter should be active",
+                    "default": true
                 },
                 "better-comments.multilineComments": {
                     "type": "boolean",

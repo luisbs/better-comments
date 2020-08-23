@@ -18,7 +18,13 @@ This extension can be configured in User Settings or Workspace settings.
 #### Highlight Plain Text
 `"better-comments.highlightPlainText": false`
 This setting will control whether comments in a plain text file are styled using the annotation tags.
-When true, the tags (defaults: `! * ? //`) will be detected if they're the first character on a line.
+When true, the tags will be detected if they're the first character on a line.
+Only applies when `better-comments.singleLineComments` is set to `true`.
+
+#### Single Line Comments
+`"better-comments.singleLineComments": true`
+Whether the single line comment highlighter should be active
+When false, single line comments will be presented without decoration.
 
 #### Multiline Comments
 `"better-comments.multilineComments": true`
@@ -28,7 +34,7 @@ When false, multiline comments will be presented without decoration.
 #### Use JSDoc Style
 `"better-comments.useJSDocStyle": ["apex","javascript","javascriptreact","typescript","typescriptreact"]`
 This setting will control whether multiline comments are styled respecting the [JSDoc](link-jsdoc) sintax.
-Only applies when `#better-comments.multilineComments#` is set to `true`.
+Only applies when `better-comments.multilineComments` is set to `true`.
 Is active by default on `apex`, `javascript`, `javascriptreact`, `typescript` and `typescriptreact` lenguages.
 But other languages can be added or removed to modify this behavior, see [support](supported-languages).
 
