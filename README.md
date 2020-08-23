@@ -38,12 +38,13 @@ When false, multiline comments will be presented without decoration.
 `"better-comments.useJSDocStyle": ["apex","javascript","javascriptreact","typescript","typescriptreact"]`
 
 This setting will control whether multiline comments are styled respecting the [JSDoc](link-jsdoc) sintax.
-
 > Only applies when `better-comments.multilineComments` is set to `true`.
 
 Is active by default on `apex`, `javascript`, `javascriptreact`, `typescript` and `typescriptreact` lenguages. But other languages can be added or removed to modify this behavior, see [support](supported-languages).
 
+#### Tags
 `better-comments.tags`
+
 The tags are the characters or sequences used to mark a comment for decoration. Each tag can contain:
 ```jsonc
 {
@@ -94,14 +95,10 @@ The default 5 can be modified, and more can be added.
 See language identifiers [here](link-vscode).
 
 The support of [JSDoc](link-jsdoc) syntax is teorical, based on the syntax of the comments of each language.
-
-'**Default**' languages use JSDoc as the recommeded syntax (e.g. javascript)
-
-'_Supported_' languages doesn't have JSDoc, but they have a similar syntax standard (e.g. [Javadoc](link-javadoc) for java).
-
-'~Compatible~' languages are compatible, but they have a different recommended syntax (e.g. [SassDoc](link-sassdoc) for sass/scss).
-
-'Compatible' languages are teorical compatible based on their comment syntax.
++ '**Default**' languages use JSDoc as the recommeded syntax (e.g. javascript)
++ '_Supported_' languages doesn't have JSDoc, but they have a similar syntax standard (e.g. [Javadoc](link-javadoc) for java).
++ '~Compatible~' languages are compatible, but they have a different recommended syntax (e.g. [SassDoc](link-sassdoc) for sass/scss).
++ 'Compatible' languages are teorical compatible based on their comment syntax.
 
 |Lenguage|Language identifier|Inline comment|Block comment|JSDoc Support|Notes|
 |--------|:-----------------:|:------------:|:-----------:|:-----------:|----:|
