@@ -3,7 +3,6 @@ import { Parser } from './parser';
 
 // this method is called when vs code is activated
 export function activate(context: vscode.ExtensionContext) {
-
     let activeEditor: vscode.TextEditor;
     let parser: Parser = new Parser();
 
@@ -20,9 +19,6 @@ export function activate(context: vscode.ExtensionContext) {
 
         // Finds the multi line comments using the language comment delimiter
         parser.FindBlockComments(activeEditor);
-
-        // Finds the jsdoc comments
-        parser.FindJSDocComments(activeEditor);
 
         // Apply the styles set in the package.json
         parser.ApplyDecorations(activeEditor);
@@ -64,7 +60,7 @@ export function activate(context: vscode.ExtensionContext) {
     // * IMPORTANT:
     // To avoid calling update too often,
     // set a timer for 200ms to wait before updating decorations
-    var timeout: NodeJS.Timer;
+    let timeout: NodeJS.Timer;
     function triggerUpdateDecorations() {
         if (timeout) {
             clearTimeout(timeout);
