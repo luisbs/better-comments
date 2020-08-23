@@ -3,7 +3,7 @@
     "displayName": "Better Comments",
     "icon": "icon.png",
     "description": "Improve your code commenting by annotating with alert, informational, TODOs, and more!",
-    "version": "2.1.0",
+    "version": "2.2.0",
     "publisher": "aaron-bond",
     "author": {
         "name": "Aaron Bond"
@@ -32,14 +32,13 @@
         "onLanguage:bibtex",
         "onLanguage:brightscript",
         "onLanguage:c",
-        "onLanguage:clojure",
         "onLanguage:cfml",
+        "onLanguage:clojure",
         "onLanguage:COBOL",
         "onLanguage:coffeescript",
         "onLanguage:cpp",
         "onLanguage:csharp",
         "onLanguage:css",
-        "onLanguage:d",
         "onLanguage:dart",
         "onLanguage:diagram",
         "onLanguage:dockerfile",
@@ -47,23 +46,23 @@
         "onLanguage:elm",
         "onLanguage:erlang",
         "onLanguage:flax",
-        "onLanguage:fsharp",
         "onLanguage:fortran-modern",
+        "onLanguage:fsharp",
         "onLanguage:gdscript",
         "onLanguage:genstat",
         "onLanguage:go",
         "onLanguage:graphql",
         "onLanguage:groovy",
         "onLanguage:haskell",
-        "onLanguage:html",
         "onLanguage:haxe",
         "onLanguage:hive-sql",
-        "onLanguage:kotlin",
+        "onLanguage:html",
         "onLanguage:java",
         "onLanguage:javascript",
         "onLanguage:javascriptreact",
         "onLanguage:jsonc",
         "onLanguage:julia",
+        "onLanguage:kotlin",
         "onLanguage:latex",
         "onLanguage:less",
         "onLanguage:lisp",
@@ -78,10 +77,10 @@
         "onLanguage:pascal",
         "onLanguage:perl",
         "onLanguage:perl6",
+        "onLanguage:php",
         "onLanguage:pig",
         "onLanguage:plaintext",
         "onLanguage:plsql",
-        "onLanguage:php",
         "onLanguage:powershell",
         "onLanguage:puppet",
         "onLanguage:python",
@@ -89,9 +88,9 @@
         "onLanguage:racket",
         "onLanguage:ruby",
         "onLanguage:rust",
-        "onLanguage:scala",
         "onLanguage:sas",
         "onLanguage:sass",
+        "onLanguage:scala",
         "onLanguage:scss",
         "onLanguage:shaderlab",
         "onLanguage:shellscript",
@@ -123,17 +122,28 @@
     },
     "contributes": {
         "configuration": {
-            "title": "Better Comments configuration",
+            "title": "Better Comments",
             "properties": {
+                "better-comments.highlightPlainText": {
+                    "type": "boolean",
+                    "description": "Whether the plaintext comment highlighter should be active",
+                    "default": false
+                },
                 "better-comments.multilineComments": {
                     "type": "boolean",
                     "description": "Whether the multiline comment highlighter should be active",
                     "default": true
                 },
-                "better-comments.highlightPlainText": {
-                    "type": "boolean",
-                    "description": "Whether the plaintext comment highlighter should be active",
-                    "default": false
+                "better-comments.useJSDocStyle": {
+                    "type": "array",
+                    "markdownDescription": "Whether the multiline comment highlighter should use JSDoc style. Only applies when `#better-comments.multilineComments#` is set to `true`",
+                    "default": [
+                        "apex",
+                        "javascript",
+                        "javascriptreact",
+                        "typescript",
+                        "typescriptreact"
+                    ]
                 },
                 "better-comments.tags": {
                     "type": "array",
@@ -141,48 +151,24 @@
                     "default": [
                         {
                             "tag": "!",
-                            "color": "#FF2D00",
-                            "strikethrough": false,
-                            "underline": false,
-                            "backgroundColor": "transparent",
-                            "bold": false,
-                            "italic": false
+                            "color": "#FF2D00"
                         },
                         {
                             "tag": "?",
-                            "color": "#3498DB",
-                            "strikethrough": false,
-                            "underline": false,
-                            "backgroundColor": "transparent",
-                            "bold": false,
-                            "italic": false
+                            "color": "#3498DB"
                         },
                         {
                             "tag": "//",
                             "color": "#474747",
-                            "strikethrough": true,
-                            "underline": false,
-                            "backgroundColor": "transparent",
-                            "bold": false,
-                            "italic": false
+                            "strikethrough": true
                         },
                         {
                             "tag": "todo",
-                            "color": "#FF8C00",
-                            "strikethrough": false,
-                            "underline": false,
-                            "backgroundColor": "transparent",
-                            "bold": false,
-                            "italic": false
+                            "color": "#FF8C00"
                         },
                         {
                             "tag": "*",
-                            "color": "#98C379",
-                            "strikethrough": false,
-                            "underline": false,
-                            "backgroundColor": "transparent",
-                            "bold": false,
-                            "italic": false
+                            "color": "#98C379"
                         }
                     ]
                 }
